@@ -1,0 +1,158 @@
+#3.1.3	Replacing  APH-AR, APH-TN and CCP certificates with self-signed certificates
+
+#Find node UUID
+
+NSX_MANAGER='nsxmgr-99a'
+NSX_USER='admin'
+NSX_PASSWORD='VMware1!VMware1!'
+URI="/api/v1/cluster"
+METHOD='GET'
+
+response=$(curl -k -X $METHOD \
+    "https://$NSX_MANAGER$URI" \
+    -u "$NSX_USER:$NSX_PASSWORD" \
+    -H "content-type: application/json")
+
+NODE_UUID=$(echo $response | jq -r '.nodes[].node_uuid')
+
+#APH
+
+#Generate certificate
+
+NSX_MANAGER='nsxmgr-99a'
+NSX_USER='admin'
+NSX_PASSWORD='VMware1!VMware1!'
+URI='/api/v1/trust-management/csrs?action=self_sign'
+METHOD='POST'
+BODY=$(cat <<END
+{
+  "display_name": "APH-AR for $NODE_UUID",
+  "subject":
+  {
+    "attributes":
+    [
+      {"key":"CN","value":"APH-AR for $NODE_UUID"}
+    ]
+  },
+  "key_size": "2048",
+  "algorithm": "RSA",
+  "days_valid": 825
+}
+END
+)
+
+response=$(curl -k -X $METHOD \
+    "https://$NSX_MANAGER$URI" \
+    -u "$NSX_USER:$NSX_PASSWORD" \
+    -H "content-type: application/json" \
+    -d "$BODY")
+
+
+CERT_ID=$(echo $response | jq -r '.id')
+
+
+#Apply certificate
+
+SERVICE_TYPE="APH"
+URI="/api/v1/trust-management/certificates/$CERT_ID?action=apply_certificate&service_type=$SERVICE_TYPE&node_id=$NODE_UUID"
+METHOD='POST'
+
+response=$(curl -k -X $METHOD \
+    "https://$NSX_MANAGER$URI" \
+    -u "$NSX_USER:$NSX_PASSWORD" \
+    -H "content-type: application/json")
+
+
+#APH_TN
+
+#Generate certificate
+
+NSX_MANAGER='nsxmgr-99a'
+NSX_USER='admin'
+NSX_PASSWORD='VMware1!VMware1!'
+URI='/api/v1/trust-management/csrs?action=self_sign'
+METHOD='POST'
+BODY=$(cat <<END
+{
+  "display_name": "APH-TN for $NODE_UUID",
+  "subject":
+  {
+    "attributes":
+    [
+      {"key":"CN","value":"APH-TN for $NODE_UUID"}
+    ]
+  },
+  "key_size": "2048",
+  "algorithm": "RSA",
+  "days_valid": 825
+}
+END
+)
+
+response=$(curl -k -X $METHOD \
+    "https://$NSX_MANAGER$URI" \
+    -u "$NSX_USER:$NSX_PASSWORD" \
+    -H "content-type: application/json" \
+    -d "$BODY")
+
+
+CERT_ID=$(echo $response | jq -r '.id')
+
+
+#Apply certificate
+
+SERVICE_TYPE="APH_TN"
+URI="/api/v1/trust-management/certificates/$CERT_ID?action=apply_certificate&service_type=$SERVICE_TYPE&node_id=$NODE_UUID"
+METHOD='POST'
+
+response=$(curl -k -X $METHOD \
+    "https://$NSX_MANAGER$URI" \
+    -u "$NSX_USER:$NSX_PASSWORD" \
+    -H "content-type: application/json")
+
+
+#CCP
+
+NSX_MANAGER='nsxmgr-99a'
+NSX_USER='admin'
+NSX_PASSWORD='VMware1!VMware1!'
+URI='/api/v1/trust-management/csrs?action=self_sign'
+METHOD='POST'
+BODY=$(cat <<END
+{
+  "display_name": "CCP for $NODE_UUID",
+  "subject":
+  {
+    "attributes":
+    [
+      {"key":"CN","value":"CCP for $NODE_UUID"}
+    ]
+  },
+  "key_size": "2048",
+  "algorithm": "RSA",
+  "days_valid": 825
+}
+END
+)
+
+response=$(curl -k -X $METHOD \
+    "https://$NSX_MANAGER$URI" \
+    -u "$NSX_USER:$NSX_PASSWORD" \
+    -H "content-type: application/json" \
+    -d "$BODY")
+
+
+CERT_ID=$(echo $response | jq -r '.id')
+
+
+#Apply certificate
+
+SERVICE_TYPE="CCP"
+URI="/api/v1/trust-management/certificates/$CERT_ID?action=apply_certificate&service_type=$SERVICE_TYPE&node_id=$NODE_UUID"
+METHOD='POST'
+
+response=$(curl -k -X $METHOD \
+    "https://$NSX_MANAGER$URI" \
+    -u "$NSX_USER:$NSX_PASSWORD" \
+    -H "content-type: application/json")
+
