@@ -6,9 +6,12 @@ The only requirements to run the scripts are bash and [jq](https://jqlang.github
 
 ## Table of contents (use it to find the corresponding script)
 
-1	Introduction	3
-1.1	Scope of the document	3
-1.2	Additional Resources	3
+1	Introduction
+
+1.1	Scope of the document
+
+1.2	Additional Resources
+
 2	Overview of the NSX Certificates	4
 2.1	API/UI Certificates	5
 2.2	APH-TN, CCP, APH-AR Certificates	5
