@@ -1,0 +1,38 @@
+#3.6.1	Import a CA signed certificate via the API (CSR Generated outside of NSX)
+
+#Generate CA private key and certificate
+openssl genrsa -out ca.key  2048
+openssl req -x509 -new -nodes -key ca.key -sha256 -days 3650 -out ca.crt -subj "/CN=MYCA" -extensions v3_ca
+
+#Generate private key for sample certificate 
+openssl genrsa -out cert_sample.key 2048
+
+#Generate CSR for sample certificate, we will include both SERVER and CLIENT EKUs so that the certificate can be used for any service (NSX generated CSR have the same EKU settings)
+openssl req -new -key cert_sample.key -out  cert_sample.csr -subj /CN=cert_sample -extensions client_server_ssl -config <(cat /etc/ssl/openssl.cnf <(printf '[client_server_ssl]\nextendedKeyUsage = serverAuth,clientAuth\n'))
+
+#Sign CSR via the CA cert and key
+openssl x509 -req -in cert_sample.csr -CA ca.crt -CAkey ca.key -CAcreateserial -out cert_sample.crt -days 3650 -sha256 -extfile <(printf "extendedKeyUsage=serverAuth,clientAuth")
+
+
+#Generate JSON to upload certificate 
+BODY=$(cat <<END
+  {
+    "display_name": "cert_sample",
+    "pem_encoded": "$(awk '{printf "%s\\n", $0}' cert_sample.crt ca.crt )",
+    "private_key": "$(awk '{printf "%s\\n", $0}' cert_sample.key )"
+  }
+END
+)
+
+
+NSX_MANAGER='192.168.110.17'
+NSX_USER='admin'
+NSX_PASSWORD='VMware1!VMware1!'
+URI='/api/v1/trust-management/certificates?action=import'
+METHOD='POST'
+
+response=$(curl -k -X $METHOD \
+    "https://$NSX_MANAGER$URI" \
+    -u "$NSX_USER:$NSX_PASSWORD" \
+    -H "content-type: application/json" \
+    -d "$BODY")
