@@ -1,0 +1,59 @@
+#3.6.2	Import a CA signed certificate via the API (CSR Generated in NSX)
+
+NSX_MANAGER='192.168.110.17'
+NSX_USER='admin'
+NSX_PASSWORD='VMware1!VMware1!'
+URI='/api/v1/trust-management/csrs'
+METHOD='POST'
+BODY=$(cat <<END
+{
+  "display_name": "sample_cert",
+  "subject":
+  {
+    "attributes":
+    [
+      {"key":"CN","value":"sample_cert"}
+    ]
+  },
+  "key_size": "2048",
+  "algorithm": "RSA"
+}
+END
+)
+
+response=$(curl -k -X $METHOD \
+    "https://$NSX_MANAGER$URI" \
+    -u "$NSX_USER:$NSX_PASSWORD" \
+    -H "content-type: application/json" \
+    -d "$BODY")
+
+
+#Generate CA private key and certificate
+openssl genrsa -out ca.key  2048
+openssl req -x509 -new -nodes -key ca.key -sha256 -days 3650 -out ca.crt -subj "/CN=MYCA" -extensions v3_ca
+
+
+#Sign CSR via the CA cert and key
+#This step is or completeness only and can be used in a lab, in a real environment the CSR will be signed by the Enterprise CA
+#You can get the content of the PEM file to be summitted to the CA via this command:
+# echo $response | jq -r '.pem_encoded' 
+openssl x509 -req -in <(echo $response | jq -r '.pem_encoded') -CA ca.crt -CAkey ca.key -CAcreateserial -out cert_sample.crt -days 3650 -sha256 -extfile <(printf "extendedKeyUsage=serverAuth,clientAuth")
+
+
+#Generate JSON to upload certificate 
+BODY=$(cat <<END
+  {
+    "display_name": "cert_sample",
+    "pem_encoded": "$(awk '{printf "%s\\n", $0}' cert_sample.crt ca.crt )"
+  }
+END
+)
+
+URI='/api/v1/trust-management/certificates?action=import'
+METHOD='POST'
+
+response=$(curl -k -X $METHOD \
+    "https://$NSX_MANAGER$URI" \
+    -u "$NSX_USER:$NSX_PASSWORD" \
+    -H "content-type: application/json" \
+    -d "$BODY")
