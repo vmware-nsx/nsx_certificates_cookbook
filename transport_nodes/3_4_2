@@ -1,0 +1,19 @@
+#3.4.2	Replacing a TN certificate manually
+
+TN_UUID='f5465f1d-2144-4121-aacf-28b597dfe19d_manual'
+
+#Generate Self-signed Certitificate with correct extensions
+openssl req -newkey rsa:2048 -keyout $TN_UUID'.key' -out $TN_UUID'.csr' -subj '/CN='$TN_UUID -nodes
+openssl x509 -req -in $TN_UUID'.csr' -signkey $TN_UUID'.key' -out $TN_UUID'.crt' -days 825 -extfile <(printf "extendedKeyUsage=clientAuth")
+
+#Manually copy certificate and key to the host
+scp f5465f1d-2144-4121-aacf-28b597dfe19d_manual.key root@$TN_IP:/etc/vmware/nsx/host-privkey.pem
+scp f5465f1d-2144-4121-aacf-28b597dfe19d_manual.crt root@$TN_IP:/etc/vmware/nsx/host-cert.pem
+
+
+#SSH to the host and use the NSXCLI to push the new certificate to the control plane, we need NSX Manager credentials and certificate thumbprint
+[root@esx-02a:~] nsxcli
+esx-02a.corp.vmbeans.com>push host-certificate 192.168.110.17 username admin thumbprint 75906a5167bad9772e2b0672dfca9d2d4aea6e61d129ef5edff2d8ae7c1a3a9f
+Password for API user:
+Host certificate was pushed to management plane successfully
+
