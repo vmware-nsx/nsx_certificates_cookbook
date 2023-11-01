@@ -1,0 +1,78 @@
+#3.1.4	Replace Corfu Client Certificates
+#All the corfu client certificates are replaced quickly upon invocation of the replacement API call except for the CBM_MP certificates, 
+#which require multiple services to restart, and the API/UI to become unavailable for 10-15 minutes. 
+#For this reason, it is the last one we replace in the script.
+
+
+##CBM Certificates
+
+NSX_MANAGER='nsxmgr-99a'
+NSX_USER='admin'
+NSX_PASSWORD='VMware1!VMware1!'
+
+
+#Find node UUID
+
+URI="/api/v1/cluster"
+METHOD='GET'
+
+response=$(curl -k -X $METHOD \
+    "https://$NSX_MANAGER$URI" \
+    -u "$NSX_USER:$NSX_PASSWORD" \
+    -H "content-type: application/json")
+
+NODE_UUID=$(echo $response | jq -r '.nodes[].node_uuid')
+
+
+#Replace CBM certificates
+
+CBM_PROFILES=("CBM_AR" "CBM_CCP" "CBM_CLUSTER_MANAGER" "CBM_CM_INVENTORY" "CBM_IDPS_REPORTING" "CBM_MESSAGING_MANAGER" "CBM_MONITORING" "CBM_SITE_MANAGER" "CBM_UPGRADE_COORDINATOR" "CBM_MP")
+
+for i in ${!CBM_PROFILES[@]};
+do
+sleep 5
+CBM_PROFILE=${CBM_PROFILES[$i]}
+URI='/api/v1/trust-management/csrs?action=self_sign'
+METHOD='POST'
+BODY=$(cat <<END
+{
+  "display_name": "$CBM_PROFILE for node $NODE_UUID",
+  "subject":
+   {
+   "attributes":
+   [
+     {"key":"CN","value":"$CBM_PROFILE for node $NODE_UUID"}
+   ]
+  },
+  "key_size": "2048",
+  "algorithm": "RSA",
+  "days_valid": 825
+}
+END
+)
+  
+  response=$(curl -k -X $METHOD \
+      "https://$NSX_MANAGER$URI" \
+      -u "$NSX_USER:$NSX_PASSWORD" \
+      -H "content-type: application/json" \
+      -d "$BODY")
+  echo "Response for generating the certificate of $CBM_PROFILE:"
+  echo $response 
+
+  CERT_ID=$(echo $response | jq -r '.id')
+
+  #Apply certificate
+
+  URI="/api/v1/trust-management/certificates/$CERT_ID?action=apply_certificate&service_type=$CBM_PROFILE&node_id=$NODE_UUID"
+  METHOD='POST'
+
+  response=$(curl -k -X $METHOD \
+      "https://$NSX_MANAGER$URI" \
+      -u "$NSX_USER:$NSX_PASSWORD" \
+      -H "content-type: application/json")
+
+  echo "Response for applying the certificate of $CBM_PROFILE:"
+  echo $response 
+
+done  
+
