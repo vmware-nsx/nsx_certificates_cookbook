@@ -1,0 +1,147 @@
+#3.5.1	Create PI with corresponding self-signed certificate
+
+NSX_MANAGER='192.168.110.17'
+NSX_USER='admin'
+NSX_PASSWORD='VMware1!VMware1!'
+URI="/api/v1/trust-management/certificates?action=import"
+METHOD='POST'
+PI_NAME="neteng"
+PI_ROLE="network_engineer"
+NSX_PI_CERT_FILE="pi.crt"
+NSX_PI_KEY_FILE="pi.key"
+
+#Generate self-signed certificate
+openssl req -newkey rsa:2048 -x509 -nodes -keyout "$NSX_PI_KEY_FILE" -new -out "$NSX_PI_CERT_FILE" -subj /CN="$PI_NAME" -extensions client_server_ssl -config <(cat /etc/ssl/openssl.cnf <(printf '[client_server_ssl]\nextendedKeyUsage = clientAuth\n')) -sha256 -days 825
+
+#Upload certificate to NSX, private key is not included
+BODY=$(cat <<END
+  {
+    "display_name": "$PI_NAME",
+    "pem_encoded": "$(awk '{printf "%s\\n", $0}' $NSX_PI_CERT_FILE)"
+  }
+END
+)
+
+response=$(curl -k -X $METHOD \
+    "https://$NSX_MANAGER$URI" \
+    -u "$NSX_USER:$NSX_PASSWORD" \
+    -H "content-type: application/json" \
+    -d "$BODY")
+
+#retrieve UUID of the uploaded cert. It is needed to associate the PI to the certificate 
+CERT_ID=$(echo $response | jq -r '.results[0] | .id')
+
+#Generate a random UUID, required for PI creation
+NODE_ID=$(cat /proc/sys/kernel/random/uuid)
+
+#Create new PI and associate it with the cert previously uploaded
+URI="/api/v1/trust-management/principal-identities"
+
+BODY=$(cat <<END
+    {
+         "display_name": "$PI_NAME",
+         "name": "$PI_NAME",
+         "role": "$PI_ROLE",
+         "certificate_id": "$CERT_ID",
+         "node_id": "$NODE_ID"
+    }
+END
+)
+
+response=$(curl -k -X $METHOD \
+    "https://$NSX_MANAGER$URI" \
+    -u "$NSX_USER:$NSX_PASSWORD" \
+    -H "content-type: application/json" \
+    -d "$BODY")
+
+
+
+
+#Test PI credentials 
+URI="/policy/api/v1/infra/segments"
+METHOD='GET'
+
+response=$(curl -k -X $METHOD \
+    "https://$NSX_MANAGER$URI" \
+    --key $NSX_PI_KEY_FILE --cert $NSX_PI_CERT_FILE \
+    -H "content-type: application/json")
+
+echo $response
+
+#Visualize certificate properties, verify it is a self-signed certificate
+openssl x509 -in pi.crt  -text
+Certificate:
+    Data:
+        Version: 3 (0x2)
+        Serial Number:
+            21:ae:04:ba:83:2d:9b:35:25:e3:9d:ce:a2:e9:18:68:50:a7:0f:38
+        Signature Algorithm: sha256WithRSAEncryption
+        Issuer: CN = neteng
+        Validity
+            Not Before: Oct  8 15:19:00 2023 GMT
+            Not After : Jan 10 15:19:00 2026 GMT
+        Subject: CN = neteng
+        Subject Public Key Info:
+            Public Key Algorithm: rsaEncryption
+                Public-Key: (2048 bit)
+                Modulus:
+                    00:b6:0f:25:00:2c:0c:84:19:ce:88:08:68:15:f9:
+                    07:62:59:a8:4c:b9:b4:35:6e:56:c1:04:2c:78:e0:
+                    e0:a5:e6:03:2f:1b:88:99:de:da:59:22:c1:78:95:
+                    41:23:b2:69:8e:bc:25:a2:3a:8c:95:97:de:c4:08:
+                    76:b4:0c:70:0a:2c:6e:a5:ca:ba:8e:e3:0f:19:20:
+                    f1:3b:b0:81:61:62:49:5c:a4:17:46:bf:2a:62:d2:
+                    7b:2c:09:30:31:f7:a9:40:2a:ac:11:bc:60:69:d2:
+                    06:13:12:50:d9:87:6e:29:7b:e4:ce:69:bb:60:44:
+                    b3:5b:a9:4d:46:f3:b8:4f:c4:f6:7a:81:b1:94:c5:
+                    70:2e:47:29:b7:3a:3e:fe:d9:aa:e4:31:90:ef:6b:
+                    c1:15:54:3d:c1:a4:27:cb:19:5d:d2:f5:7f:b9:0c:
+                    6c:fc:1f:de:fa:88:d2:91:95:fb:5f:ee:45:f9:4b:
+                    51:33:17:83:b6:93:6c:f8:1d:84:fe:b2:36:78:62:
+                    57:d2:6f:10:42:2c:38:43:be:8c:94:80:8b:03:32:
+                    46:b1:ab:be:78:9c:b3:63:1f:56:2f:7d:ef:86:25:
+                    87:dc:4f:34:fb:96:d8:5a:45:9f:35:7d:93:65:38:
+                    1c:0e:3a:f8:66:ac:dc:6b:e7:d9:59:38:fa:5f:8c:
+                    25:91
+                Exponent: 65537 (0x10001)
+        X509v3 extensions:
+            X509v3 Extended Key Usage:
+                TLS Web Client Authentication
+            X509v3 Subject Key Identifier:
+                82:48:6A:3E:AA:CB:DE:0B:6D:F1:E1:43:40:A1:47:C4:81:45:FB:08
+    Signature Algorithm: sha256WithRSAEncryption
+    Signature Value:
+        2e:4a:31:df:cd:1a:7a:ea:de:76:ae:7a:99:c6:0e:c2:9a:a9:
+        30:5a:f8:46:c3:00:f5:62:d4:f2:3c:2f:66:f5:f7:e3:44:69:
+        5d:05:c7:f6:58:8f:fd:3f:ad:59:71:25:1d:01:15:26:32:52:
+        77:95:d2:a1:50:7e:4c:72:b9:a1:f3:be:73:08:76:8b:e5:76:
+        eb:de:49:cf:44:c8:4e:b0:fb:6a:a2:88:36:bd:4d:c8:4a:9e:
+        71:f5:7e:ee:d6:bd:51:f1:be:5b:ba:1d:54:56:66:ea:40:f6:
+        76:56:10:34:b1:75:73:40:15:78:b8:66:80:ea:6c:5c:8a:fd:
+        aa:8b:72:e3:8e:a5:d7:36:bc:40:36:0a:20:ac:8a:1d:f2:eb:
+        00:ae:6b:33:95:b9:5d:db:bc:6a:ef:f3:c9:22:3b:9e:1f:91:
+        ec:81:5b:5e:9d:b5:d5:1a:c6:b0:df:3e:7b:6b:b8:e3:f3:4e:
+        b9:6a:6e:91:47:bf:f5:72:76:4b:2c:26:70:11:0e:4c:f4:78:
+        7c:c9:ac:94:ae:38:3b:5e:43:b1:ba:8a:76:59:0d:96:a3:38:
+        9e:75:e0:6e:28:de:a8:ab:c5:79:8c:a2:37:bf:56:30:fa:5e:
+        d2:67:d3:c2:fc:9b:d5:3e:34:49:e8:6e:77:2b:de:59:42:f1:
+        d1:31:13:08
+-----BEGIN CERTIFICATE-----
+MIIC5jCCAc6gAwIBAgIUIa4EuoMtmzUl453OoukYaFCnDzgwDQYJKoZIhvcNAQEL
+BQAwETEPMA0GA1UEAwwGbmV0ZW5nMB4XDTIzMTAwODE1MTkwMFoXDTI2MDExMDE1
+MTkwMFowETEPMA0GA1UEAwwGbmV0ZW5nMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8A
+MIIBCgKCAQEAtg8lACwMhBnOiAhoFfkHYlmoTLm0NW5WwQQseODgpeYDLxuImd7a
+WSLBeJVBI7JpjrwlojqMlZfexAh2tAxwCixupcq6juMPGSDxO7CBYWJJXKQXRr8q
+YtJ7LAkwMfepQCqsEbxgadIGExJQ2YduKXvkzmm7YESzW6lNRvO4T8T2eoGxlMVw
+Lkcptzo+/tmq5DGQ72vBFVQ9waQnyxld0vV/uQxs/B/e+ojSkZX7X+5F+UtRMxeD
+tpNs+B2E/rI2eGJX0m8QQiw4Q76MlICLAzJGsau+eJyzYx9WL33vhiWH3E80+5bY
+WkWfNX2TZTgcDjr4Zqzca+fZWTj6X4wlkQIDAQABozYwNDATBgNVHSUEDDAKBggr
+BgEFBQcDAjAdBgNVHQ4EFgQUgkhqPqrL3gtt8eFDQKFHxIFF+wgwDQYJKoZIhvcN
+AQELBQADggEBAC5KMd/NGnrq3nauepnGDsKaqTBa+EbDAPVi1PI8L2b19+NEaV0F
+x/ZYj/0/rVlxJR0BFSYyUneV0qFQfkxyuaHzvnMIdovlduveSc9EyE6w+2qiiDa9
+TchKnnH1fu7WvVHxvlu6HVRWZupA9nZWEDSxdXNAFXi4ZoDqbFyK/aqLcuOOpdc2
+vEA2CiCsih3y6wCuazOVuV3bvGrv88kiO54fkeyBW16dtdUaxrDfPntruOPzTrlq
+bpFHv/VydkssJnARDkz0eHzJrJSuODteQ7G6inZZDZajOJ514G4o3qirxXmMoje/
+VjD6XtJn08L8m9U+NEnobncr3llC8dExEwg=
+-----END CERTIFICATE-----
+
