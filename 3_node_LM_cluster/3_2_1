@@ -4,6 +4,7 @@
 
 NSX_MANAGER='192.168.110.17'
 NSX_USER='admin'
+NSX_PASSWORD='VMware1!VMware1!'
 URI='/api/v1/trust-management/csrs-extended'
 METHOD='POST'
 BODY=$(cat <<END
