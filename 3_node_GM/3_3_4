@@ -1,0 +1,107 @@
+#3.3.4	Replacing corfu clients certificates
+
+##CBM Certificates
+
+
+NSX_MANAGER='192.168.110.18'
+NSX_USER='admin'
+NSX_PASSWORD='VMware1!VMware1!'
+URI="/api/v1/cluster"
+METHOD='GET'
+
+response=$(curl -k -X $METHOD \
+    "https://$NSX_MANAGER$URI" \
+    -u "$NSX_USER:$NSX_PASSWORD" \
+    -H "content-type: application/json")
+
+NODE_UUID_01=$(echo $response | jq -r '.nodes[0].node_uuid')
+NODE_UUID_02=$(echo $response | jq -r '.nodes[1].node_uuid')
+NODE_UUID_03=$(echo $response | jq -r '.nodes[2].node_uuid')
+
+
+NODE_UUIDS_ARRAY=("$NODE_UUID_01" "$NODE_UUID_02" "$NODE_UUID_03" )
+
+
+##start loop accross the 3 nodes
+
+for i in ${NODE_UUIDS_ARRAY[@]}; do
+  NODE_UUID=$i
+
+
+#Replace CBM certificates
+
+CBM_PROFILES=("CBM_AR" "CBM_CCP" "CBM_CLUSTER_MANAGER" "CBM_CSM" "CBM_GM" "CBM_CM_INVENTORY" "CBM_SITE_PROXY_CLIENT" "CBM_IDPS_REPORTING" "CBM_MESSAGING_MANAGER" "CBM_MONITORING" "CBM_UPGRADE_COORDINATOR" "CBM_SITE_MANAGER" "CBM_MP")
+
+for i in ${!CBM_PROFILES[@]};
+do
+sleep 5
+CBM_PROFILE=${CBM_PROFILES[$i]}
+URI='/api/v1/trust-management/csrs?action=self_sign'
+METHOD='POST'
+BODY=$(cat <<END
+{
+  "display_name": "$CBM_PROFILE for node $NODE_UUID",
+  "subject":
+   {
+   "attributes":
+   [
+     {"key":"CN","value":"$CBM_PROFILE for node $NODE_UUID"}
+   ]
+  },
+  "key_size": "2048",
+  "algorithm": "RSA",
+  "days_valid": 825
+}
+END
+)
+  
+  while true; do
+  response=$(curl -k -X $METHOD \
+      "https://$NSX_MANAGER$URI" \
+      -u "$NSX_USER:$NSX_PASSWORD" \
+      -H "content-type: application/json" \
+      -d "$BODY")
+  echo "Response for generating the certificate of $CBM_PROFILE for node $NODE_UUID:"
+  if [[ $response =~ "error" ]]; then
+        echo "Error in response: $response"
+        sleep 10  # Wait for a few seconds before the next attempt
+    else
+        echo "Success! Response: $response"
+        break  # Exit the loop when there is no 'error' in the response
+    fi
+  done
+
+  CERT_ID=$(echo $response | jq -r '.id')
+
+  #Apply certificate
+
+  URI="/api/v1/trust-management/certificates/$CERT_ID?action=apply_certificate&service_type=$CBM_PROFILE&node_id=$NODE_UUID"
+  METHOD='POST'
+
+  while true; do
+  response=$(curl -k -X $METHOD \
+      "https://$NSX_MANAGER$URI" \
+      -u "$NSX_USER:$NSX_PASSWORD" \
+      -H "content-type: application/json")
+  if [[ $response =~ "error" ]]; then
+        echo "Error in response: $response"
+        sleep 10  # Wait for a few seconds before the next attempt
+    else
+        echo "Success! Response: $response"
+        break  # Exit the loop when there is no 'error' in the response
+    fi
+  done
+
+
+  echo "Response for applying the certificate of $CBM_PROFILE for node $NODE_UUID:"
+  echo $response 
+
+done  
+# Pause and wait for user input
+sleep 10
+read -n 1 -s -r -p "Press any key to continue when the cluster is stable..."
+
+# Continue with the script
+echo "Continuing with the script..."
+done
+
