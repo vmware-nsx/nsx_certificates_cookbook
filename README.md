@@ -3,3 +3,55 @@ This repository includes all the scripts part of the NSX Certificates Management
 The script has been added to this repository as the copy and paste from the PDF document produces formatting errors.
 
 The only requirements to run the scripts are bash and [jq](https://jqlang.github.io/jq/). You can install jq via the usual package manager of your system (i.e., homebrew or apt)
+
+## Table of contents (use it to find the corresponding script)
+
+1	Introduction	3
+1.1	Scope of the document	3
+1.2	Additional Resources	3
+2	Overview of the NSX Certificates	4
+2.1	API/UI Certificates	5
+2.2	APH-TN, CCP, APH-AR Certificates	5
+2.3	Local manager and Global Manager Certificates	6
+2.4	CBM certificates	9
+2.5	Transport Nodes Certificates	10
+2.6	Principal Identity Certificates	11
+2.7	Summary of the certificates in a Local Manager NSX Cluster	12
+2.8	Summary of the certificates in a Global Manager NSX cluster	20
+2.9	NSX Certificates Best practices	29
+2.10	Impact of certificate expiration	29
+3	Recipes	31
+3.1	Singleton NSX Manager	31
+3.1.1	Replacing API/UI Certificates with a self-signed certificate	31
+3.1.2	Replacing Local Manager Certificate with a self-signed certificate	34
+3.1.3	Replacing  APH-AR, APH-TN and CCP certificates with self-signed certificates	35
+3.1.4	Replace Corfu Client Certificates	38
+3.1.5	Replace Corfu Server Certificate	40
+3.1.6	Delete Unused certificates.	42
+3.2	Three node cluster NSX Manager	43
+3.2.1	Replacing API/UI Certificates with a self-signed certificate	43
+3.2.2	Replacing Local Manager Certificate with a self-signed certificate	47
+3.2.3	Replacing APH-AR, APH-TN and CCP certificates with self-signed certificates	48
+3.2.4	Replacing Corfu Client certificates	52
+3.2.5	Replace Corfu Server Certificate	55
+3.2.6	Delete Unused certificates.	58
+3.3	Global Manager 3 node cluster	59
+3.3.1	Replacing API/UI Certificates with a self-signed certificate	59
+3.3.2	Replacing Global Manager Certificate with a self-signed certificate	62
+3.3.3	Replacing  APH-AR and APH-TN certificates with self-signed certificates	63
+3.3.4	Replacing corfu clients certificates	66
+3.3.5	Replace Corfu Server Certificate	69
+3.3.6	Delete Unused certificates.	71
+3.4	Transport Node Certificates	72
+3.4.1	Replacing a TN certificate via the NSX API	72
+3.4.2	Replacing a TN certificate manually	75
+3.4.3	Retrieve validity of the TN certificates currently in use	75
+3.5	Principal Identities Certificates	76
+3.5.1	Create PI with corresponding self-signed certificate	76
+3.5.2	Update certificate of existing PI	80
+3.6	Additional Recipes	82
+3.6.1	Import a CA signed certificate via the API (CSR Generated outside of NSX)	82
+3.6.2	Import a CA signed certificate via the API (CSR Generated in NSX)	83
+3.6.3	Generate and import a self-signed certificate generated outside of NSX	85
+3.6.4	Verify certificate replacement via opensll on a specific port	86
+3.6.5	Manage Corfu certificate expiry check	87
