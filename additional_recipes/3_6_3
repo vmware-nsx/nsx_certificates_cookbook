@@ -1,0 +1,30 @@
+#3.6.3	Generate and import a self-signed certificate generated outside of NSX
+
+NSX_MANAGER='192.168.110.17'
+NSX_USER='admin'
+NSX_PASSWORD='VMware1!VMware1!'
+URI="/api/v1/trust-management/certificates?action=import"
+METHOD='POST'
+PI_NAME="neteng"
+
+#Generate self-signed certificate
+openssl req -newkey rsa:2048 -x509 -nodes -keyout sample.key -new -out sample.crt -subj /CN="sample_cert" -extensions client_server_ssl -config <(cat /etc/ssl/openssl.cnf <(printf '[client_server_ssl]\nextendedKeyUsage = clientAuth\n')) -sha256 -days 3650
+
+#Upload certificate to NSX, private key is not included
+BODY=$(cat <<END
+  {
+    "display_name": "sample_cert",
+    "pem_encoded": "$(awk '{printf "%s\\n", $0}' sample.crt)",
+    "private_key": "$(awk '{printf "%s\\n", $0}' sample.key)"
+  }
+END
+)
+
+response=$(curl -k -X $METHOD \
+    "https://$NSX_MANAGER$URI" \
+    -u "$NSX_USER:$NSX_PASSWORD" \
+    -H "content-type: application/json" \
+    -d "$BODY")
+
+#retrieve UUID of the uploaded cert. It may be needed if using this block in larger scripts
+CERT_ID=$(echo $response | jq -r '.results[0] | .id')
