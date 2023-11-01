@@ -12,31 +12,56 @@ The only requirements to run the scripts are bash and [jq](https://jqlang.github
 
 1.2	Additional Resources
 
-2	Overview of the NSX Certificates	4
-2.1	API/UI Certificates	5
-2.2	APH-TN, CCP, APH-AR Certificates	5
-2.3	Local manager and Global Manager Certificates	6
-2.4	CBM certificates	9
-2.5	Transport Nodes Certificates	10
-2.6	Principal Identity Certificates	11
-2.7	Summary of the certificates in a Local Manager NSX Cluster	12
-2.8	Summary of the certificates in a Global Manager NSX cluster	20
-2.9	NSX Certificates Best practices	29
-2.10	Impact of certificate expiration	29
-3	Recipes	31
-3.1	Singleton NSX Manager	31
-3.1.1	Replacing API/UI Certificates with a self-signed certificate	31
-3.1.2	Replacing Local Manager Certificate with a self-signed certificate	34
-3.1.3	Replacing  APH-AR, APH-TN and CCP certificates with self-signed certificates	35
-3.1.4	Replace Corfu Client Certificates	38
-3.1.5	Replace Corfu Server Certificate	40
-3.1.6	Delete Unused certificates.	42
-3.2	Three node cluster NSX Manager	43
-3.2.1	Replacing API/UI Certificates with a self-signed certificate	43
-3.2.2	Replacing Local Manager Certificate with a self-signed certificate	47
-3.2.3	Replacing APH-AR, APH-TN and CCP certificates with self-signed certificates	48
-3.2.4	Replacing Corfu Client certificates	52
-3.2.5	Replace Corfu Server Certificate	55
+2	Overview of the NSX Certificates
+
+2.1	API/UI Certificates
+
+2.2	APH-TN, CCP, APH-AR Certificates
+
+2.3	Local manager and Global Manager Certificates
+
+2.4	CBM certificates
+
+2.5	Transport Nodes Certificates
+
+2.6	Principal Identity Certificates
+
+2.7	Summary of the certificates in a Local Manager NSX Cluster
+
+2.8	Summary of the certificates in a Global Manager NSX cluster
+
+2.9	NSX Certificates Best practices
+
+2.10	Impact of certificate expiration
+
+3	Recipes
+
+3.1	Singleton NSX Manager
+
+3.1.1	Replacing API/UI Certificates with a self-signed certificate
+
+3.1.2	Replacing Local Manager Certificate with a self-signed certificate
+
+3.1.3	Replacing  APH-AR, APH-TN and CCP certificates with self-signed certificates
+
+3.1.4	Replace Corfu Client Certificates
+
+3.1.5	Replace Corfu Server Certificate
+
+3.1.6	Delete Unused certificates
+
+#3.2	Three node cluster NSX Manager
+
+3.2.1	Replacing API/UI Certificates with a self-signed certificate
+
+3.2.2	Replacing Local Manager Certificate with a self-signed certificate
+
+3.2.3	Replacing APH-AR, APH-TN and CCP certificates with self-signed certificates
+
+3.2.4	Replacing Corfu Client certificates
+
+3.2.5	Replace Corfu Server Certificate
+
 3.2.6	Delete Unused certificates.	58
 3.3	Global Manager 3 node cluster	59
 3.3.1	Replacing API/UI Certificates with a self-signed certificate	59
