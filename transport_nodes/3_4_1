@@ -1,0 +1,104 @@
+#3.4.1	Replacing a TN certificate via the NSX API
+
+NSX_MANAGER='192.168.110.17'
+NSX_USER='admin'
+NSX_PASSWORD='VMware1!VMware1!'
+TN_UUID='f5465f1d-2144-4121-aacf-28b597dfe19d'
+URI="/api/v1/trust-management/certificates/action/replace-host-certificate/$TN_UUID"
+METHOD='POST'
+
+openssl req -newkey rsa:2048 -keyout $TN_UUID'.key' -out $TN_UUID'.csr' -subj '/CN='$TN_UUID -nodes
+openssl x509 -req -in $TN_UUID'.csr' -signkey $TN_UUID'.key' -out $TN_UUID'.crt' -days 825 -extfile <(printf "extendedKeyUsage=clientAuth")
+
+
+BODY=$(cat <<END
+  {
+    "pem_encoded": "$(awk '{printf "%s\\n", $0}' $TN_UUID'.crt' )",
+    "private_key": "$(awk '{printf "%s\\n", $0}' $TN_UUID'.key' )"
+  }
+END
+)
+
+response=$(curl -w "%{http_code}" -k -X $METHOD \
+    "https://$NSX_MANAGER$URI" \
+    -u "$NSX_USER:$NSX_PASSWORD" \
+    -H "content-type: application/json" \
+    -d "$BODY")
+
+To check the certificate has been applied, ssh to the transport node a verify the new certificate is there, you can check that the CN=”Transport Node UUID” and that the validity starts immediately and last 825 days. 
+[root@esx-02a:~] openssl x509 -in /etc/vmware/nsx/host-cert.pem -text
+Certificate:
+    Data:
+        Version: 3 (0x2)
+        Serial Number:
+            27:7d:a3:3f:fb:01:e8:61:18:fe:c0:2a:0d:3a:b8:ab:1a:85:11:3d
+    Signature Algorithm: sha256WithRSAEncryption
+        Issuer: CN=f5465f1d-2144-4121-aacf-28b597dfe19d
+        Validity
+            Not Before: Sep 29 14:34:59 2023 GMT
+            Not After : Jan  1 14:34:59 2026 GMT
+        Subject: CN=f5465f1d-2144-4121-aacf-28b597dfe19d
+        Subject Public Key Info:
+            Public Key Algorithm: rsaEncryption
+                Public-Key: (2048 bit)
+                Modulus:
+                    00:9e:b6:6a:bc:2a:c3:6e:57:73:51:e9:74:5e:52:
+                    e0:36:b1:02:79:57:96:35:40:12:dc:2e:8b:13:10:
+                    88:85:a5:db:fc:6a:71:51:68:1d:f4:d3:22:f5:88:
+                    e2:11:97:8e:ab:da:d7:f1:5a:77:15:0e:52:9b:76:
+                    39:69:63:23:0b:54:ff:3d:91:4a:1a:5a:7a:96:c4:
+                    db:8f:4b:d3:86:ed:89:8e:63:37:2e:d8:1d:d3:d2:
+                    ff:76:9e:1c:2b:70:90:2a:3b:37:1a:ab:95:bc:b4:
+                    05:20:3d:39:6b:b6:76:fc:58:70:aa:40:29:b7:2d:
+                    b0:d2:cd:0b:8c:38:9f:7d:c1:cc:27:a0:cb:7a:98:
+                    fb:e8:cb:03:4d:d4:7b:55:21:d8:78:17:68:7a:6f:
+                    a9:28:5e:98:38:f1:ff:7e:29:1b:63:cb:c1:be:e5:
+                    47:c7:91:72:19:43:da:7c:9f:c4:99:6a:e6:69:5b:
+                    f9:7d:df:ad:da:00:2d:14:7b:77:a4:3f:14:7e:4c:
+                    76:52:78:a7:47:d8:24:7d:97:43:9e:d9:cc:bf:f9:
+                    6d:b4:13:95:b0:a0:a1:53:de:97:f2:e7:25:c9:ee:
+                    0b:2e:da:02:b1:86:43:67:0c:8f:5d:ac:6a:cc:fc:
+                    a5:ac:da:7a:3e:78:00:04:1f:3b:04:a4:1e:62:a8:
+                    d3:a7
+                Exponent: 65537 (0x10001)
+        X509v3 extensions:
+            X509v3 Extended Key Usage:
+                TLS Web Client Authentication
+            X509v3 Subject Key Identifier:
+                FA:A4:F9:1E:D4:82:2A:72:83:2A:D6:7B:AF:D2:78:18:E6:05:C0:9F
+    Signature Algorithm: sha256WithRSAEncryption
+         92:3a:df:2c:e6:fe:77:1b:2b:dc:cd:48:ed:be:a0:75:36:04:
+         8f:a6:76:c9:be:96:8d:f3:fe:f8:c7:24:6f:a4:51:05:4a:4d:
+         d3:57:80:ef:55:74:9c:00:7d:1d:25:95:37:61:91:cb:d7:0a:
+         12:85:33:31:70:29:76:d6:0c:41:8a:dc:22:30:03:a3:be:39:
+         9c:61:dc:62:a7:07:c4:46:34:02:2c:03:f5:24:31:16:a2:96:
+         61:25:42:dc:3e:33:3c:be:d5:08:9d:ba:3a:79:1a:40:e0:aa:
+         dd:48:1c:59:11:c1:16:11:c4:30:45:17:24:20:4b:81:24:ba:
+         d4:2e:b7:e8:53:ed:a1:55:a6:19:b9:d2:23:f3:50:86:46:ef:
+         aa:5a:a1:b0:b5:6f:34:0c:a3:19:5b:9e:b5:d3:63:8e:38:e5:
+         16:60:75:22:12:00:f9:69:8c:3e:e5:c8:11:25:ae:c2:02:a6:
+         b0:e8:bf:fd:ea:16:fe:b6:51:10:fe:f0:e7:5e:6f:2a:e9:d4:
+         71:02:c6:2b:35:e6:58:08:99:4a:f4:a0:98:fa:b8:cf:78:9d:
+         76:52:5b:21:48:9c:77:48:2a:cf:c3:84:82:67:0a:92:c8:30:
+         f5:31:1e:6f:3b:88:ea:95:a3:6c:76:a6:56:6d:6f:a7:53:cb:
+         4a:06:cb:17
+-----BEGIN CERTIFICATE-----
+MIIDIjCCAgqgAwIBAgIUJ32jP/sB6GEY/sAqDTq4qxqFET0wDQYJKoZIhvcNAQEL
+BQAwLzEtMCsGA1UEAwwkZjU0NjVmMWQtMjE0NC00MTIxLWFhY2YtMjhiNTk3ZGZl
+MTlkMB4XDTIzMDkyOTE0MzQ1OVoXDTI2MDEwMTE0MzQ1OVowLzEtMCsGA1UEAwwk
+ZjU0NjVmMWQtMjE0NC00MTIxLWFhY2YtMjhiNTk3ZGZlMTlkMIIBIjANBgkqhkiG
+9w0BAQEFAAOCAQ8AMIIBCgKCAQEAnrZqvCrDbldzUel0XlLgNrECeVeWNUAS3C6L
+ExCIhaXb/GpxUWgd9NMi9YjiEZeOq9rX8Vp3FQ5Sm3Y5aWMjC1T/PZFKGlp6lsTb
+j0vThu2JjmM3Ltgd09L/dp4cK3CQKjs3GquVvLQFID05a7Z2/FhwqkApty2w0s0L
+jDiffcHMJ6DLepj76MsDTdR7VSHYeBdoem+pKF6YOPH/fikbY8vBvuVHx5FyGUPa
+fJ/EmWrmaVv5fd+t2gAtFHt3pD8Ufkx2UninR9gkfZdDntnMv/lttBOVsKChU96X
+8uclye4LLtoCsYZDZwyPXaxqzPylrNp6PngABB87BKQeYqjTpwIDAQABozYwNDAT
+BgNVHSUEDDAKBggrBgEFBQcDAjAdBgNVHQ4EFgQU+qT5HtSCKnKDKtZ7r9J4GOYF
+wJ8wDQYJKoZIhvcNAQELBQADggEBAJI63yzm/ncbK9zNSO2+oHU2BI+mdsm+lo3z
+/vjHJG+kUQVKTdNXgO9VdJwAfR0llTdhkcvXChKFMzFwKXbWDEGK3CIwA6O+OZxh
+3GKnB8RGNAIsA/UkMRailmElQtw+Mzy+1Qidujp5GkDgqt1IHFkRwRYRxDBFFyQg
+S4EkutQut+hT7aFVphm50iPzUIZG76paobC1bzQMoxlbnrXTY4445RZgdSISAPlp
+jD7lyBElrsICprDov/3qFv62URD+8Odebyrp1HECxis15lgImUr0oJj6uM94nXZS
+WyFInHdIKs/DhIJnCpLIMPUxHm87iOqVo2x2plZtb6dTy0oGyxc=
+-----END CERTIFICATE-----
+
