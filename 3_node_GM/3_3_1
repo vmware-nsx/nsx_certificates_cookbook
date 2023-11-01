@@ -1,0 +1,145 @@
+#3.3.1	Replacing API/UI Certificates with a self-signed certificate
+
+#API/UI
+
+NSX_MANAGER='192.168.110.18'
+NSX_USER='admin'
+URI='/api/v1/trust-management/csrs-extended'
+METHOD='POST'
+BODY=$(cat <<END
+{
+  "display_name": "API/VIP Certificate",
+  "subject": {
+    "attributes": [
+      {
+        "key": "CN",
+        "value": "GM-A"
+      },
+      {
+        "key": "O",
+        "value": "VMware"
+      },
+      {
+        "key": "OU",
+        "value": "NSBU"
+      },
+      {
+        "key": "C",
+        "value": "US"
+      },
+      {
+        "key": "ST",
+        "value": "CA"
+      },
+      {
+        "key": "L",
+        "value": "PA"
+      }
+    ]
+  },
+  "key_size": "2048",
+  "algorithm": "RSA",
+  "extensions": {
+    "subject_alt_names": {
+      "ip_addresses": [
+        "192.168.110.14",
+        "192.168.110.15",
+        "192.168.110.16",
+        "192.168.110.18"
+      ],
+      "dns_names": [
+        "gm-01a",
+        "gm-02a",
+        "gm-03a",
+        "gm-vip-a"
+      ]
+    }
+  }
+}
+END
+)
+
+response=$(curl -k -X $METHOD \
+    "https://$NSX_MANAGER$URI" \
+    -u "$NSX_USER:$NSX_PASSWORD" \
+    -H "content-type: application/json" \
+    -d "$BODY")
+
+
+CSR_ID=$(echo $response | jq -r '.id')
+
+#Self-sign the CSR
+
+URI="/api/v1/trust-management/csrs/$CSR_ID?action=self_sign&days_valid=825"
+METHOD='POST'
+
+response=$(curl -k -X $METHOD \
+    "https://$NSX_MANAGER$URI" \
+    -u "$NSX_USER:$NSX_PASSWORD" \
+    -H "content-type: application/json")
+
+
+CERT_ID=$(echo $response | jq -r '.id')
+
+#visualize certificate properties
+openssl x509 -in <(echo $response | jq -r '.pem_encoded')   -text
+
+#Find node UUIDs
+
+URI="/api/v1/cluster"
+METHOD='GET'
+
+response=$(curl -k -X $METHOD \
+    "https://$NSX_MANAGER$URI" \
+    -u "$NSX_USER:$NSX_PASSWORD" \
+    -H "content-type: application/json")
+
+NODE_UUID_01=$(echo $response | jq -r '.nodes[0].node_uuid')
+NODE_UUID_02=$(echo $response | jq -r '.nodes[1].node_uuid')
+NODE_UUID_03=$(echo $response | jq -r '.nodes[2].node_uuid')
+
+
+
+#Apply certificate node 01
+
+URI="/api/v1/trust-management/certificates/$CERT_ID?action=apply_certificate&service_type=API&node_id=$NODE_UUID_01"
+METHOD='POST'
+
+response=$(curl -k -X $METHOD \
+    "https://$NSX_MANAGER$URI" \
+    -u "$NSX_USER:$NSX_PASSWORD" \
+    -H "content-type: application/json")
+
+#Apply certificate node 02
+
+URI="/api/v1/trust-management/certificates/$CERT_ID?action=apply_certificate&service_type=API&node_id=$NODE_UUID_02"
+METHOD='POST'
+
+response=$(curl -k -X $METHOD \
+    "https://$NSX_MANAGER$URI" \
+    -u "$NSX_USER:$NSX_PASSWORD" \
+    -H "content-type: application/json")
+
+
+#Apply certificate node 03
+
+URI="/api/v1/trust-management/certificates/$CERT_ID?action=apply_certificate&service_type=API&node_id=$NODE_UUID_03"
+METHOD='POST'
+
+response=$(curl -k -X $METHOD \
+    "https://$NSX_MANAGER$URI" \
+    -u "$NSX_USER:$NSX_PASSWORD" \
+    -H "content-type: application/json")
+
+
+
+#Apply certificate to VIP
+
+URI="/api/v1/trust-management/certificates/$CERT_ID?action=apply_certificate&service_type=MGMT_CLUSTER"
+METHOD='POST'
+
+response=$(curl -k -X $METHOD \
+    "https://$NSX_MANAGER$URI" \
+    -u "$NSX_USER:$NSX_PASSWORD" \
+    -H "content-type: application/json")
+
