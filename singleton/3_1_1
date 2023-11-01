@@ -1,0 +1,113 @@
+#3.1.1	Replacing API/UI Certificates with a self-signed certificate
+
+NSX_MANAGER='nsxmgr-99a'
+NSX_USER='admin'
+NSX_PASSWORD='VMware1!VMware1!'
+URI='/api/v1/trust-management/csrs-extended'
+METHOD='POST'
+BODY=$(cat <<END
+{
+  "display_name": "API/VIP Certificate",
+  "subject": {
+    "attributes": [
+      {
+        "key": "CN",
+        "value": "nsxmgr-99a"
+      },
+      {
+        "key": "O",
+        "value": "VMware"
+      },
+      {
+        "key": "OU",
+        "value": "NSBU"
+      },
+      {
+        "key": "C",
+        "value": "US"
+      },
+      {
+        "key": "ST",
+        "value": "CA"
+      },
+      {
+        "key": "L",
+        "value": "PA"
+      }
+    ]
+  },
+  "key_size": "2048",
+  "algorithm": "RSA",
+  "extensions": {
+    "subject_alt_names": {
+      "dns_names": [
+        "nsxmgr-99a-vip",
+        "nsxmgr-99a-vip.nsxdg.eng.vmware.com",
+        "nsxmgr-99a",
+        "nsxmgr-99a.nsxdg.eng.vmware.com"
+      ]
+    }
+  }
+}
+END
+)
+
+response=$(curl -k -X $METHOD \
+    "https://$NSX_MANAGER$URI" \
+    -u "$NSX_USER:$NSX_PASSWORD" \
+    -H "content-type: application/json" \
+    -d "$BODY")
+
+
+CSR_ID=$(echo $response | jq -r '.id')
+
+
+NSX_MANAGER='nsxmgr-99a'
+NSX_USER='admin'
+NSX_PASSWORD='VMware1!VMware1!'
+URI="/api/v1/trust-management/csrs/$CSR_ID?action=self_sign&days_valid=825"
+METHOD='POST'
+
+response=$(curl -k -X $METHOD \
+    "https://$NSX_MANAGER$URI" \
+    -u "$NSX_USER:$NSX_PASSWORD" \
+    -H "content-type: application/json")
+
+
+CERT_ID=$(echo $response | jq -r '.id')
+
+#visualize certificate properties
+openssl x509 -in <(echo $response | jq -r '.pem_encoded')   -text
+
+#Find node UUID
+
+NSX_MANAGER='nsxmgr-99a'
+NSX_USER='admin'
+NSX_PASSWORD='VMware1!VMware1!'
+URI="/api/v1/cluster"
+METHOD='GET'
+
+response=$(curl -k -X $METHOD \
+    "https://$NSX_MANAGER$URI" \
+    -u "$NSX_USER:$NSX_PASSWORD" \
+    -H "content-type: application/json")
+
+NODE_UUID=$(echo $response | jq -r '.nodes[].node_uuid')
+
+#Apply certificate
+
+URI="/api/v1/trust-management/certificates/$CERT_ID?action=apply_certificate&service_type=API&node_id=$NODE_UUID"
+METHOD='POST'
+
+response=$(curl -k -X $METHOD \
+    "https://$NSX_MANAGER$URI" \
+    -u "$NSX_USER:$NSX_PASSWORD" \
+    -H "content-type: application/json")
+
+URI="/api/v1/trust-management/certificates/$CERT_ID?action=apply_certificate&service_type=MGMT_CLUSTER"
+METHOD='POST'
+
+response=$(curl -k -X $METHOD \
+    "https://$NSX_MANAGER$URI" \
+    -u "$NSX_USER:$NSX_PASSWORD" \
+    -H "content-type: application/json")
