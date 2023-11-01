@@ -1,0 +1,33 @@
+#3.6.5	Manage Corfu certificate expiry check
+#Get Corfu Certificate Expiry Check Status
+
+NSX_MANAGER='192.168.110.17'
+NSX_USER='admin'
+NSX_PASSWORD='VMware1!VMware1!'
+URI='/api/v1/node/services/datastore/corfu_cert_expiry_check'
+METHOD='GET'
+
+curl -k -X $METHOD \
+    "https://$NSX_MANAGER$URI" \
+    -u "$NSX_USER:$NSX_PASSWORD" \
+    -H "content-type: application/json"
+
+#Disable Corfu Certificate Expiry Check
+
+URI='/api/v1/node/services/datastore/corfu_cert_expiry_check?action=disable'
+METHOD='POST'
+
+curl -k -X $METHOD \
+    "https://$NSX_MANAGER$URI" \
+    -u "$NSX_USER:$NSX_PASSWORD" \
+    -H "content-type: application/json"
+
+#Enable Corfu Certificate Expiry Check
+
+URI='/api/v1/node/services/datastore/corfu_cert_expiry_check?action=enable'
+METHOD='POST'
+
+curl -k -X $METHOD \
+    "https://$NSX_MANAGER$URI" \
+    -u "$NSX_USER:$NSX_PASSWORD" \
+    -H "content-type: application/json"
