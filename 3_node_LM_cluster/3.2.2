@@ -1,0 +1,43 @@
+#3.2.2	Replacing Local Manager Certificate with a self-signed certificate
+
+NSX_MANAGER='192.168.110.17'
+NSX_USER='admin'
+NSX_PASSWORD='VMware1!VMware1!'
+URI='/api/v1/trust-management/csrs?action=self_sign'
+METHOD='POST'
+BODY=$(cat <<END
+{
+  "display_name": "LOCAL_MANAGER_LM-A ",
+  "subject":
+  {
+    "attributes":
+    [
+      {"key":"CN","value":"LOCAL_MANAGER_LM-A"}
+    ]
+  },
+  "key_size": "2048",
+  "algorithm": "RSA",
+  "days_valid": 825
+}
+END
+)
+
+response=$(curl -k -X $METHOD \
+    "https://$NSX_MANAGER$URI" \
+    -u "$NSX_USER:$NSX_PASSWORD" \
+    -H "content-type: application/json" \
+    -d "$BODY")
+
+
+CERT_ID=$(echo $response | jq -r '.id')
+
+
+URI="/api/v1/trust-management/certificates/$CERT_ID?action=apply_certificate&service_type=LOCAL_MANAGER"
+METHOD='POST'
+
+response=$(curl -k -X $METHOD \
+    "https://$NSX_MANAGER$URI" \
+    -u "$NSX_USER:$NSX_PASSWORD" \
+    -H "content-type: application/json")
+
+
