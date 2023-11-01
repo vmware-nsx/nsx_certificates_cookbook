@@ -1,0 +1,34 @@
+#3.4.3	Retrieve validity of the TN certificates currently in use
+
+NSX_MANAGER='192.168.110.17'
+NSX_USER='admin'
+NSX_PASSWORD='VMware1!VMware1!'
+URI="/api/v1/messaging/clients"
+METHOD='GET'
+
+response=$(curl -k -X $METHOD \
+    "https://$NSX_MANAGER$URI" \
+    -u "$NSX_USER:$NSX_PASSWORD" \
+    -H "content-type: application/json")
+
+
+results=$(echo $response |  jq  ' .results')
+
+element_count=$(echo "$results" | jq 'length')
+
+for i in $(seq $element_count)
+do
+    element=$(echo "$results" | jq --argjson index "$i" '.[$index]')
+    if [[ $(echo "$element" | jq '.certificate') != "null" ]]; then
+      # Extract the certificate value from the JSON
+      certificate=$(echo "$element" | jq -r '.certificate')
+      # Extract the TN ID value from the JSON
+      tn_id=$(echo "$element" | jq -r '.client_id')
+      # Save the certificate to a temporary file
+      echo "$certificate" > certificate.crt
+      echo "Certificate validity for node $tn_id is:"
+      openssl x509 -noout -dates -in certificate.crt
+    fi
+done
+
+rm certificate.crt
