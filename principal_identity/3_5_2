@@ -1,0 +1,83 @@
+#3.5.2	Update certificate of existing PI
+
+NSX_MANAGER='192.168.110.17'
+NSX_USER='admin'
+NSX_PASSWORD='VMware1!VMware1!'
+URI="/api/v1/trust-management/principal-identities"
+METHOD='GET'
+
+
+curl -k -X $METHOD \
+    "https://$NSX_MANAGER$URI" \
+    -u "$NSX_USER:$NSX_PASSWORD" \
+    -H "content-type: application/json" | jq '.results[] | {name,id}'
+
+
+#Sample output ->
+{
+  "name": "neteng",
+  "id": "36350762-bc41-493f-8e2b-7f06fe1d4b73"
+}
+{
+  "name": "LocalManagerIdentity-ab26ee5f-696e-4826-b413-10106cbd8a67",
+  "id": "566c838c-8808-4725-b575-7bb220bd4938"
+}
+{
+  "name": "GlobalManagerIdentity-d38e8535-4a72-45fe-939f-475c07b75aa7",
+  "id": "d5afccaa-20f4-49a7-821f-addffb664295"
+}
+{
+  "name": "GlobalManagerIdentity-e308a77a-7828-4256-93b9-a3f9512dca4a",
+  "id": "1ddb6d1f-98c6-464c-8907-65130b281b80"
+}
+#####
+#Assign the id of the PI for which you want to perform the certificate replcement to the PI_UUID variable
+
+PI_UUID="36350762-bc41-493f-8e2b-7f06fe1d4b73"
+
+
+
+
+#Generate new self-signed certificate
+URI="/api/v1/trust-management/certificates?action=import"
+METHOD='POST'
+PI_NAME="neteng_updated"
+PI_ROLE="network_engineer"
+NSX_PI_CERT_FILE="pi.crt"
+NSX_PI_KEY_FILE="pi.key"
+
+openssl req -newkey rsa:2048 -x509 -nodes -keyout "$NSX_PI_KEY_FILE" -new -out "$NSX_PI_CERT_FILE" -subj /CN="$PI_NAME" -extensions client_server_ssl -config <(cat /etc/ssl/openssl.cnf <(printf '[client_server_ssl]\nextendedKeyUsage = clientAuth\n')) -sha256 -days 825
+
+#Upload the new certificate to NSX, private key is not included
+BODY=$(cat <<END
+  {
+    "display_name": "$PI_NAME",
+    "pem_encoded": "$(awk '{printf "%s\\n", $0}' $NSX_PI_CERT_FILE)"
+  }
+END
+)
+
+response=$(curl -k -X $METHOD \
+    "https://$NSX_MANAGER$URI" \
+    -u "$NSX_USER:$NSX_PASSWORD" \
+    -H "content-type: application/json" \
+    -d "$BODY")
+
+#retrieve UUID of the uploaded cert. It is needed to associate the PI to the certificate 
+CERT_ID=$(echo $response | jq -r '.results[0] | .id')
+
+#Associate the new certificate with the existing PI
+URI="/api/v1/trust-management/principal-identities?action=update_certificate"
+METHOD='POST'
+BODY=$(cat <<END
+  {
+    "principal_identity_id": "$PI_UUID",
+    "certificate_id" : "$CERT_ID"  }
+END
+)
+
+response=$(curl -k -X $METHOD \
+    "https://$NSX_MANAGER$URI" \
+    -u "$NSX_USER:$NSX_PASSWORD" \
+    -H "content-type: application/json" \
+    -d "$BODY")
