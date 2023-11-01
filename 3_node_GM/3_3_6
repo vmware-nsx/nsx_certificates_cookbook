@@ -1,0 +1,36 @@
+#3.3.6	Delete Unused certificates
+NSX_MANAGER='192.168.110.18'
+NSX_USER='admin'
+NSX_PASSWORD='VMware1!VMware1!'
+URI='/api/v1/trust-management/certificates'
+METHOD='GET'
+
+
+response=$(curl -k -X $METHOD \
+    "https://$NSX_MANAGER$URI" \
+    -u "$NSX_USER:$NSX_PASSWORD" \
+    -H "content-type: application/json" \
+    -d "$BODY")
+
+NOTUSED_CERTIDs=$(echo $response | jq '.results[] | select(.used_by == [])' | jq -r '.id')
+
+# Initialize an empty array
+NOTUSED_CERTIDs_array=()
+
+# Use a while loop to split the string into an array
+while read -r -a temp_array; do
+    NOTUSED_CERTIDs_array+=("${temp_array[@]}")
+done <<< "$NOTUSED_CERTIDs"
+
+
+for i in ${!NOTUSED_CERTIDs_array[@]};
+do
+  CERT_ID=${NOTUSED_CERTIDs_array[$i]}
+  URI="/api/v1/trust-management/certificates/$CERT_ID"
+  METHOD='DELETE'
+
+  response=$(curl -k -X $METHOD \
+      "https://$NSX_MANAGER$URI" \
+      -u "$NSX_USER:$NSX_PASSWORD" \
+      -H "content-type: application/json")
+done
